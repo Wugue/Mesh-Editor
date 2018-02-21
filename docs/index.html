@@ -25,42 +25,64 @@
 
 <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
 <h1 align="middle">Project 2: Mesh Editor</h1>
-<h2 align="middle">YOUR NAME, CS184-???</h2>
+<h2 align="middle">Eric Tsai, CS184-aaf</h2>
 
 <br><br>
 
 <div>
 
-<h2 align="middle">Overview</h2>
-<p>Give a high-level overview of what you implemented in this project. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the project.</p>
-
 <h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
 
 <h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
 
-<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
+<p>de Casteljau's algorithm is a recursive algorithm that, given a set of n points, linearly interpolates the edge between every two adjacent points to form a new point and result in n - 1 points. The algorithm steps recursively until there is 1 point left which defines the bezier curve. My implementation uses a for loop that loops n - 1 times on a set of n points, with each loop creating the result of interpolating the points at index i and i + 1.</p>
 
 <div align="middle">
   <table style="width=100%">
     <tr>
       <td>
-        <img src="images/image1.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="1-1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Curve Points</figcaption>
       </td>
       <td>
-        <img src="images/image2.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="1-2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Step 1</figcaption>
       </td>
     </tr>
     <br>
     <tr>
       <td>
-        <img src="images/image3.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="1-3.png" align="middle" width="400px"/>
+        <figcaption align="middle">Step 2</figcaption>
       </td>
       <td>
-        <img src="images/image4.png" align="middle" width="400px"/>
-        <figcaption align="middle">Caption goes here.</figcaption>
+        <img src="1-4.png" align="middle" width="400px"/>
+        <figcaption align="middle">Step 3</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="1-5.png" align="middle" width="400px"/>
+        <figcaption align="middle">Step 4</figcaption>
+      </td>
+      <td>
+        <img src="1-6.png" align="middle" width="400px"/>
+        <figcaption align="middle">Final Step and Curve</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="1-7.png" align="middle" width="400px"/>
+        <figcaption align="middle">Modified Curve with Steps</figcaption>
+      </td>
+      <td>
+        <img src="1-8.png" align="middle" width="400px"/>
+        <figcaption align="middle">Modified Curve</figcaption>
       </td>
     </tr>
   </table>
@@ -68,27 +90,82 @@
 
 
 <h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau subdivision</h3>
-
+<p>Casteljau's algorithm can extends to Bezier surfaces because you can evaluate Bezier curves 1 dimension at a time. For my implementation, For my implementation, I had to evaluate the Bezier surface at parameters (u, v). I looped through my grid of control points and evaluated the Bezier curves of every set of points in the u dimension using u as my Bezier parameter, resulting in a set of points in the dimension v is on. I then evaluated the Bezier curve of this set of points with v as thhe parameter to get the final point value of (u, v) on this surface.</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="2-1.png" align="middle" width="800px"/>
+        <figcaption align="middle">Teapot</figcaption>
+      </td>
+    </tr>
+    
+  </table>
+</div>
 
 
 <h2 align="middle">Section II: Sampling</h2>
 
 <h3 align="middle">Part 3: Average normals for half-edge meshes</h3>
+<p>Given a vertex in the mesh, I looped through each half-edge pointing out from that vertex. For each of those half-edges, I traversed the triangle to get the three points of the triangle. Given the points of the triangle, I can compute the two directional vectors of any point on the triangle, and cross them to get the normal of the triangle surface. I can then average my results for every triangle surrounding the starting vector and compute the approximate unit normal at that vertex.</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="3-1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Default</figcaption>
+      </td>
+      <td>
+        <img src="3-2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Smoothed Normals</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 
 <h3 align="middle">Part 4: Half-edge flip</h3>
+<p>Given a half-edge to flip, I computed the points A->C where the half-edge currently is and the points B->D where it should be after the flip.
+I set its vertex() to B, set the next() value of the half-edge pointing to B to this half-edge, and changed the next(() value of this half-edge to point at the relevant half-edge pointing away from D. Then I set the half-edge's face to point to this half-edge so it doesnt get caught in the other new triangle after the flip. Then I repeated process for the half-edge's twin(). This performs the flip and updates all the relevant pointers. In the screenshot, I flipped some edges on the left surface of the teapot to create some dents. When I first implemented flip, the color of one of the resulting triangles after the flip would dissapear and become see-through. Since the edges of the new triangles were correct, I knew it was probably an issue with the face pointers. It took a while of head scratching and staring at the values of my faces to realize that, while I did have two faces that started out pointing to the edges of two different triangles, once the triangles were flipped, these two edges became the edges of the same triangle, so effectively one face was lost. </p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="4-1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Smoothed Normals</figcaption>
+      </td>
+      <td>
+        <img src="4-2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Some Flips</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 
 <h3 align="middle">Part 5: Half-edge split</h3>
+<p>
+For split, I created a new vertex at the midpoint of the split edges, created 4 new edges with 8 new half-edges, and two new faces. I aligned these new edges so that it splits the original two triangle into 4 two triangles along the new vertex. I reassigned the two original faces along with the two new faces so each pointed at one of the new triangles. I updated all the pointers and then delted the original edge and its half-edges that was going to be split. It was a lengthy process, but debugging the previous part gave me a good understanding of pointers and the different halfEdgeElements associated with each triangle and half-edge so I did not encounter any major bugs. In the screenshot below, I made a few splits and flips to create deep scars along the left surface of the teapot. I split some edges on the right surface, but since it was along a flat surface, it did not really change the surface texture. 
+</p>
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="5-1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Default</figcaption>
+      </td>
+      <td>
+        <img src="5-2.png" align="middle" width="400px"/>
+        <figcaption align="middle">Flips and Splits</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
 
 
 <h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
 
-  
-<h2 align="middle">Section III: Mesh Competition</h2>
-<p>If you are not participating in the optional mesh competition, don't worry about this section!</p>
-
-<h3 align="middle">Part 7: Design your own mesh!</h3>
+<p> Unfortunately, I did not have time to complete this part. However if I were to implement it, I would first go through each triangle in the mesh and split it into four. First I would iterate through every vertex in the mesh and set isNew to False so I know it's an original vertex. For each edge in the triangle, I would construct a new vertex at its midpoint. Then I would replace each edge and its half-edges with two new edges and four new half-edges as split by the new vertex. Then for each original triangle, I would add 3 new edges and 6 new half-edges to connect the three new vertices to form the 4 new triangles. Then I would delete the original face and assign 4 new faces that point at the new triangles. Finally I would re-assign the next() and face() pointers for every single half-edge so they correctly reflect the alignments of the new triangles, like what I did in part 4 and 5. In the next part of the algorithm, I would loop through every new vertex created in the previous step, and weight the positions of the 4 original vertices that surround it using the 1/8 3/8 3/8 1/8 formula to generate a new position for the new vertex. In the final part of the algorithm, I would generate new weighted positions for all the original vertices. First I would loop through each original vertex, and assign a new position to newPosition based on the formula (1 - n*u) * original_position + u * neighbor_position_sum. After we computed all the new positions using the old positions, we can update the positions of all the original vertices to their new positions.
 
 </body>
 </html>

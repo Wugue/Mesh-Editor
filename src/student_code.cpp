@@ -10,6 +10,28 @@ namespace CGL
     // TODO Part 1.
     // Perform one step of the Bezier curve's evaluation at t using de Casteljau's algorithm for subdivision.
     // Store all of the intermediate control points into the 2D vector evaluatedLevels.
+    //(1-t)p1 * p2t
+
+    int s =  evaluatedLevels.size();
+    if (s < numControlPoints) {
+      std::vector<Vector2D> v2 = std::vector<Vector2D>();
+      for (int x = 0; x < numControlPoints - s; x++) {
+       //printf("%d\n", x);
+       Vector2D p1 = evaluatedLevels[s - 1][x];
+       //printf("%d\n", x);
+       Vector2D p2 = evaluatedLevels[s - 1][x+1];
+       //printf("%d\n", x);
+       Vector2D v = Vector2D((1-t)*p1 + p2*t);
+       //printf("%d\n", x);
+       v2.push_back(v);
+       //printf("%d\n", x);
+      } 
+      evaluatedLevels.push_back(v2);
+    }
+    //controlPoints
+    //evaluatedLevels
+    //numControlPoints
+    //t
   }
 
 
@@ -19,7 +41,15 @@ namespace CGL
     // Evaluate the Bezier surface at parameters (u, v) through 2D de Casteljau subdivision.
     // (i.e. Unlike Part 1 where we performed one subdivision level per call to evaluateStep, this function
     // should apply de Casteljau's algorithm until it computes the final, evaluated point on the surface)
-    return Vector3D();
+    std::vector<Vector3D> v3 = std::vector<Vector3D>();
+    for (int i = 0; i < 4; i++) {
+      std::vector<Vector3D> v2 = std::vector<Vector3D>();
+      for (int j = 0; j < 4; j++) {
+        v2.push_back(controlPoints[i][j]);
+      }
+      v3.push_back(evaluate1D(v2, u));
+    }
+    return evaluate1D(v3, v);
   }
 
   Vector3D BezierPatch::evaluate1D(std::vector<Vector3D> points, double t) const
@@ -27,8 +57,26 @@ namespace CGL
     // TODO Part 2.
     // Optional helper function that you might find useful to implement as an abstraction when implementing BezierPatch::evaluate.
     // Given an array of 4 points that lie on a single curve, evaluates the Bezier curve at parameter t using 1D de Casteljau subdivision.
+    int s = points.size();
+    while (s > 1) {
+      std::vector<Vector3D> v2 = std::vector<Vector3D>();
+      for (int x = 0; x < s - 1; x++) {
+       //printf("%d\n", x);
+       Vector3D p1 = points[x];
+       //printf("%d\n", x);
+       Vector3D p2 = points[x+1];
+       //printf("%d\n", x);
+       Vector3D v = Vector3D((1-t)*p1 + p2*t);
+       //printf("%d\n", x);
+       v2.push_back(v);
+       //printf("%d\n", x);
+      } 
+      points = v2;
+      s = points.size();
+    }
 
-    return Vector3D();
+
+    return points[0];
   }
 
 
@@ -39,14 +87,86 @@ namespace CGL
     // TODO Returns an approximate unit normal at this vertex, computed by
     // TODO taking the area-weighted average of the normals of neighboring
     // TODO triangles, then normalizing.
+    Vector3D n(0,0,0); // initialize a vector to store your normal sum
+    HalfedgeCIter h = halfedge(); // Since we're in a Vertex, this returns a halfedge
+                                 // pointing _away_ from that vertex
 
-    return Vector3D();
+
+    do
+    {
+       // check if the current halfedge is on the boundary
+       HalfedgeCIter h_orig = h;
+       Vector3D p1 = h->vertex()->position;
+       Vector3D p2 = h->next()->vertex()->position;
+       Vector3D p3 = h->next()->next()->vertex()->position;
+       // do
+       // {
+
+       //  h = h->next();
+       // }
+       // while (h != h_orig);
+       n += cross(p2-p1, p3-p1);
+
+
+       // move to the next halfedge around the vertex
+       h = h_orig->twin()->next();
+    }
+    while( h != halfedge() );
+
+    return n.unit();
   }
 
   EdgeIter HalfedgeMesh::flipEdge( EdgeIter e0 )
   {
     // TODO Part 4.
     // TODO This method should flip the given edge and return an iterator to the flipped edge.
+    if (e0->halfedge()->isBoundary()) {
+      return e0;
+    }
+
+    HalfedgeIter h = e0->halfedge();
+    HalfedgeIter h2 = h->twin();
+    HalfedgeIter a = h->next();
+    HalfedgeIter b = h->next()->next();
+    HalfedgeIter c = h->twin()->next()->next();
+    HalfedgeIter d = h->twin()->next();
+    Vector3D p1 = h->next()->next()->vertex()->position;
+    Vector3D p2 = h->twin()->next()->next()->vertex()->position;
+    h->face()->halfedge() = h;
+    h2->face()->halfedge() = h2;
+    h->setNeighbors( c,
+                            h->twin(),
+                            b->vertex(),
+                            h->edge(),
+                            h->face() );
+    h2->setNeighbors( b,
+                            h2->twin(),
+                            c->vertex(),
+                            h2->edge(),
+                            h2->face() );
+    a->setNeighbors( h,
+                            a->twin(),
+                            a->vertex(),
+                            a->edge(),
+                            h->face() );
+    b->setNeighbors( d,
+                            b->twin(),
+                            b->vertex(),
+                            b->edge(),
+                            h2->face() );
+    c->setNeighbors( a,
+                            c->twin(),
+                            c->vertex(),
+                            c->edge(),
+                            h->face() );
+    d->setNeighbors( h2,
+                            d->twin(),
+                            d->vertex(),
+                            d->edge(),
+                            h2->face() );
+    //h->_vertex = b->vertex();
+    //h2->_vertex = c->vertex();
+
 
     return e0;
   }
@@ -57,7 +177,93 @@ namespace CGL
     // TODO This method should split the given edge and return an iterator to the newly inserted vertex.
     // TODO The halfedge of this vertex should point along the edge that was split, rather than the new edges.
 
-    return e0->halfedge()->vertex();
+    if (e0->halfedge()->isBoundary()) {
+      return e0->halfedge()->vertex();
+    }
+
+    HalfedgeIter h = e0->halfedge();
+    HalfedgeIter h2 = h->twin();
+    HalfedgeIter a = h->next();
+    HalfedgeIter b = h->next()->next();
+    HalfedgeIter c = h->twin()->next()->next();
+    HalfedgeIter d = h->twin()->next();
+    Vector3D p1 = h->next()->next()->vertex()->position;
+    Vector3D p2 = h->twin()->next()->next()->vertex()->position;
+    Vector3D p3 = 0.5*p1 + 0.5*p2;
+    VertexIter m = newVertex();
+    m->position = p3;
+    HalfedgeIter mA = newHalfedge();
+    HalfedgeIter Bm = newHalfedge();
+    HalfedgeIter mB = newHalfedge();
+    HalfedgeIter Dm = newHalfedge();
+    HalfedgeIter mD = newHalfedge();
+    HalfedgeIter Cm = newHalfedge();
+    HalfedgeIter mC = newHalfedge();
+    HalfedgeIter Am = newHalfedge();
+    EdgeIter eA = newEdge();
+    EdgeIter eB = newEdge();
+    EdgeIter eC = newEdge();
+    EdgeIter eD = newEdge();
+    b->face() = newFace();
+    d->face() = newFace();
+    mA->setNeighbors( a,
+                            Am,
+                            m,
+                            eA,
+                            a->face() );
+    Bm->setNeighbors( mA,
+                            mB,
+                            b->vertex(),
+                            eB,
+                            a->face() );
+    mB->setNeighbors( b,
+                            Bm,
+                            m,
+                            eB,
+                            b->face() );
+    Dm->setNeighbors( mB,
+                            mD,
+                            d->vertex(),
+                            eD,
+                            b->face() );
+    mD->setNeighbors( d,
+                            Dm,
+                            m,
+                            eD,
+                            d->face() );
+    Cm->setNeighbors( mD,
+                            mC,
+                            c->vertex(),
+                            eC,
+                            d->face() );
+    mC->setNeighbors( c,
+                            Cm,
+                            m,
+                            eC,
+                            c->face() );
+    Am->setNeighbors( mC,
+                            mA,
+                            a->vertex(),
+                            eA,
+                            c->face() );
+    a->next() = Bm;
+    b->next() = Dm;
+    c->next() = Am;
+    d->next() = Cm;
+    a->face()->halfedge() = a;
+    b->face()->halfedge() = b;
+    c->face()->halfedge() = c;
+    d->face()->halfedge() = d;
+    m->halfedge() = mA;
+    eA->halfedge() = mA;
+    eB->halfedge() = mB;
+    eC->halfedge() = mC;
+    eD->halfedge() = mD;
+    deleteEdge(h->edge());
+    deleteHalfedge(h);
+    deleteHalfedge(h2);
+
+    return m;
   }
 
 
